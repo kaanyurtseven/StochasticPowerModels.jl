@@ -114,8 +114,15 @@ function build_stochastic_data_ACDC_RES(data::Dict{String,Any}, deg::Int, p_size
     #data["sdata"]= s_dict 
 
     # data["RES"]=deepcopy(data["load"]); #this is temporary. Fix it to add PV in matpower format
-    [data["RES"][d]["μ"]=0 for d in   keys(data["RES"])]
-    [data["RES"][d]["σ"]=1 for d in   keys(data["RES"])]
+    
+    ###### TO DO: MAke the distinction between Gaussian distribution and Beta
+        [data["RES"][d]["μ"] = p_size for d in   keys(data["RES"])]
+        [data["RES"][d]["σ"] = p_size * 0.1 for d in   keys(data["RES"])]
+   
+        # [data["RES"][d]["μ"]=0 for d in   keys(data["RES"])]
+        # [data["RES"][d]["σ"]=1 for d in   keys(data["RES"])]
+    
+
     [data["RES"][d]["p_size"] = p_size for d in keys(data["RES"])]
     [data["RES"][d]["q_size"] = p_size for d in keys(data["RES"])]   
     [data["RES"][d]["qd"] = 0 for d in keys(data["RES"])]
@@ -135,6 +142,7 @@ function build_stochastic_data_ACDC_RES(data::Dict{String,Any}, deg::Int, p_size
         μ, σ = data["RES"]["1"]["μ"], data["RES"]["1"]["σ"]
         
             if mop.uni[np_g] isa _PCE.GaussOrthoPoly
+                # display("GAUSSIAN")
                 pd_g[nd_g,[1,np_g+1]] = _PCE.convert2affinePCE(μ, σ, mop.uni[np_g])
                 qd_g[nd_g,[1,np_g+1]] = _PCE.convert2affinePCE(μ, σ, mop.uni[np_g])
             else
@@ -143,7 +151,6 @@ function build_stochastic_data_ACDC_RES(data::Dict{String,Any}, deg::Int, p_size
             end
        
     end
-
         # replicate the data
         data = _PM.replicate(data, Npce)
 

@@ -322,16 +322,16 @@ function variable_RES_current_imaginary(pm::AbstractPowerModel; nw::Int=nw_id_de
 end
 
 function variable_redispatch(pm::AbstractPowerModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true)
-    re_pg = _PM.var(pm, nw)[:re_pg] = JuMP.@variable(pm.model,
-        [i in _PM.ids(pm, nw, :gen)], base_name="$(nw)_re_pg",
-        start = _PM.comp_start_value(_PM.ref(pm, nw, :gen, i), "re_pg_start")
+    pg_re = _PM.var(pm, nw)[:pg_re] = JuMP.@variable(pm.model,
+        [i in _PM.ids(pm, nw, :gen)], base_name="$(nw)_pg_re",
+        start = _PM.comp_start_value(_PM.ref(pm, nw, :gen, i), "pg_re_start")
     )
 
     # for (g, gen) in _PM.ref(pm, nw, :gen)
     #     JuMP.set_lower_bound(re_pg[g], 0)
     # end
 
-    report && _PM.sol_component_value(pm, nw, :gen, :re_pg, _PM.ids(pm, nw, :gen), re_pg)
+    report && _PM.sol_component_value(pm, nw, :gen, :pg_re, _PM.ids(pm, nw, :gen), pg_re)
 end
 
 function variable_load_curt_current(pm::AbstractIVRModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true, kwargs...)

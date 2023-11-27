@@ -223,8 +223,9 @@ function constraint_cc_gen_power(pm::AbstractPowerModel, g::Int; nw::Int=nw_id_d
     λqmin = _PM.ref(pm, nw, :gen, g, "λqmin")
     λqmax = _PM.ref(pm, nw, :gen, g, "λqmax")
 
-    λpmin = 3
-    # λpmax = 3
+    λpmin = 1.9    
+    # λpmin = 1.3
+    λpmax = λpmin
     # λqmin = 3
     # λqmax = 2
 
@@ -240,7 +241,7 @@ end
 
 function constraint_cc_RES_curt_power(pm::AbstractPowerModel, p::Int; nw::Int=nw_id_default)
     pmin = 0
-    λmin = 3
+    λmin = 4.5
     λmax = 3
 
     RES = _PM.ref(pm, nw, :RES, p)
@@ -850,4 +851,16 @@ function constraint_cc_dc_branch_current_on_off(pm::AbstractPowerModel, i::Int; 
     mop = pm.data["mop"]
 
     constraint_cc_dc_branch_current_on_off(pm, i, Imax, Imin, λmax, λmin, f_idx, t_idx, T2, mop)
+end
+
+function constraint_cc_gen_redispatch(pm::AbstractPowerModel, g::Int; nw::Int=nw_id_default)
+
+    λmin = 3
+
+    pmin = 5e-4
+
+    T2 = _FP.dim_meta(pm, :PCE_coeff, "T2")
+    mop = _FP.dim_meta(pm, :PCE_coeff, "mop")
+    
+    constraint_cc_gen_redispatch(pm, g, pmin, λmin, T2, mop, nw)
 end

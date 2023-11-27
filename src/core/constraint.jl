@@ -55,6 +55,8 @@ function constraint_gp_bus_voltage_magnitude_squared(pm::AbstractACRModel, n::In
 
 end
 
+
+
 # chance constraints
 ## bus
 ""
@@ -662,7 +664,8 @@ function constraint_gp_RES_power_real(pm::AbstractIVRModel, n::Int, i, p, pd, T2
 
     p_RES  = _PM.var(pm, n, :p_RES, p)
 
-    JuMP.@constraint(pm.model,  T2.get([coeff_idx-1,coeff_idx-1]) * pd * p_size
+# If the RES is Gaussian then remove *p_size
+    JuMP.@constraint(pm.model,  T2.get([coeff_idx-1,coeff_idx-1]) * pd #* p_size
                                 ==
                                 sum(T3.get([_FP.coord(pm, n1, :PCE_coeff)-1, _FP.coord(pm, n2, :PCE_coeff)-1, coeff_idx-1]) *
                                 (vr[n1] * crd_RES[n2] + vi[n1] * cid_RES[n2])
@@ -717,7 +720,7 @@ function constraint_gp_RES_power_imaginary(pm::AbstractIVRModel, n::Int, i, p, q
 
     q_RES  = _PM.var(pm, n, :q_RES, p)
 
-    JuMP.@constraint(pm.model, T2.get([coeff_idx-1,coeff_idx-1]) * qd * q_size
+    JuMP.@constraint(pm.model, T2.get([coeff_idx-1,coeff_idx-1]) * qd #* q_size
                                 ==
                                 sum(T3.get([_FP.coord(pm, n1, :PCE_coeff)-1, _FP.coord(pm, n2, :PCE_coeff)-1, coeff_idx-1]) *
                                 (vi[n1] * crd_RES[n2] - vr[n1] * cid_RES[n2])
@@ -1248,4 +1251,95 @@ function constraint_cc_dc_branch_current_on_off(pm::AbstractACRModel, i, Imax, I
         _PM.sol(pm, 1, :branchdc, i)[:dual_dc_brach_current_to_min] = i_dc_to_min_cc
         _PM.sol(pm, 1, :branchdc, i)[:dual_dc_brach_current_to_max] = i_dc_to_max_cc
     end
+end
+
+
+function constraint_gp_gen_power_redispatch(pm::AbstractIVRModel, g::Int; nw::Int)
+
+    pg  = _PM.var(pm, nw, :pg, g)
+
+    coeff_idx = _FP.coord(pm, nw, :PCE_coeff)
+
+    pg_base = _PM.var(pm, coeff_idx, :pg, g)
+
+    relax_param = 0.01
+    
+    # JuMP.@constraint(pm.model,  pg == pg_base)
+
+    JuMP.@constraint(pm.model,  pg >= pg_base * (1 - relax_param))
+    JuMP.@constraint(pm.model,  pg <= pg_base * (1 + relax_param))
+
+end
+
+function constraint_gen_redispatch_definition(pm::AbstractIVRModel, g::Int; nw::Int)
+    # display(nw)
+    pg  = _PM.var(pm, nw, :pg, g)
+    pg_re  = _PM.var(pm, nw, :pg_re, g)
+
+    coeff_idx = _FP.coord(pm, nw, :PCE_coeff)
+
+    pg_base = _PM.var(pm, coeff_idx, :pg, g)
+
+    JuMP.@constraint(pm.model, pg_re >= pg - pg_base) 
+    
+end
+
+function constraint_gp_converter_ac_power_redispatch(pm::_PM.AbstractIVRModel, i::Int; nw::Int)
+    pconv_ac = _PM.var(pm, nw, :pconv_ac, i)
+    qconv_ac = _PM.var(pm, nw, :qconv_ac, i)
+
+    coeff_idx = _FP.coord(pm, nw, :PCE_coeff)
+
+    pconv_ac_base = _PM.var(pm, coeff_idx, :pconv_ac, i)
+    qconv_ac_base = _PM.var(pm, coeff_idx, :qconv_ac, i)
+
+    relax_param = 0.06
+
+    # JuMP.@constraint(pm.model,  pconv_ac == pconv_ac_base) 
+
+    JuMP.@constraint(pm.model,  pconv_ac >= pconv_ac_base * (1 - relax_param)) 
+    JuMP.@constraint(pm.model,  pconv_ac <= pconv_ac_base * (1 + relax_param)) 
+
+    # JuMP.@constraint(pm.model,  qconv_ac >= qconv_ac_base * (1 - relax_param)) 
+    # JuMP.@constraint(pm.model,  qconv_ac <= qconv_ac_base * (1 + relax_param)) 
+
+    # JuMP.@constraint(pm.model,  T2.get([coeff_idx-1,coeff_idx-1]) * pconv_ac 
+    #                             ==  
+    #                             T2.get([coeff_idx-1,coeff_idx-1]) * pconv_ac_base 
+    #                 )
+
+    # JuMP.@constraint(pm.model,  T2.get([coeff_idx-1,coeff_idx-1]) * qconv_ac 
+    #                             ==  
+    #                             T2.get([coeff_idx-1,coeff_idx-1]) * qconv_ac_base 
+    #                 )
+
+end
+
+function constraint_cc_gen_redispatch(pm::AbstractACRModel, g, pmin, λmin, T2, mop, nw)
+
+    pg_re  = [_PM.var(pm, n, :pg_re, g) for n in _FP.similar_ids(pm, nw; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff))]
+
+     # bounds on the expectation 
+     JuMP.@constraint(pm.model,  pmin <= _PCE.mean(pg_re, mop))
+     # chance constraint bounds
+     JuMP.@constraint(pm.model,  _PCE.var(pg_re, T2)
+                                 <=
+                                ((_PCE.mean(pg_re, mop) - pmin) / λmin)^2
+                   )
+end
+
+function constraint_voltage_magnitude_link(pm::_PM.AbstractIVRModel, i::Int; nw::Int)
+
+vms = _PM.var(pm, nw, :vms, i)
+
+coeff_idx = _FP.coord(pm, nw, :PCE_coeff)
+
+vms_base = _PM.var(pm, coeff_idx, :vms, i)
+
+relax_param = 0.06
+
+JuMP.@constraint(pm.model,  vms >= vms_base * (1 - relax_param)) 
+JuMP.@constraint(pm.model,  vms <= vms_base * (1 + relax_param)) 
+
+
 end
