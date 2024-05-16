@@ -449,3 +449,93 @@ function variable_RES_power_imaginary(pm::AbstractPowerModel; nw::Int=nw_id_defa
     
     report && _PM.sol_component_value(pm, nw, :RES, :q_RES, _PM.ids(pm, nw, :RES), q_RES)
 end
+
+function variable_branch_indicator(pm::_PM.AbstractPowerModel; nw::Int=_PM.nw_id_default, bounded::Bool=true, relax::Bool=false, report::Bool=true)
+    # b = [1,1,0,1,1,1,1];
+    br = Dict()
+    for l in _PM.ids(pm, nw, :branch)
+        br[l] = _PM.ref(pm,nw,:branch,l)
+        # display(br[l]["br_status_initial"])
+    end 
+
+    z_branch = _PM.var(pm, nw)[:z_branch] = JuMP.@variable(pm.model,
+    [l in _PM.ids(pm, nw, :branch)], base_name="$(nw)_z_branch",
+    binary = false,
+    lower_bound = 0,
+    upper_bound = 1,
+    # binary = true,
+    start = _PM.comp_start_value(_PM.ref(pm, nw, :branch, l), "z_branch_start", br[l]["br_status_initial"])
+    # start = _PM.comp_start_value(_PM.ref(pm, nw, :branch, l), "z_branch_start", 0.5)
+    )
+
+    report && _PM.sol_component_value(pm, nw, :branch, :br_status, _PM.ids(pm, nw, :branch), z_branch)
+end
+
+function variable_dc_branch_indicator(pm::_PM.AbstractPowerModel; nw::Int=_PM.nw_id_default, bounded::Bool=true, relax::Bool=false, report::Bool=true)
+ 
+    br = Dict()
+    for l in _PM.ids(pm, nw, :branchdc)
+        br[l] = _PM.ref(pm,nw,:branchdc,l)
+    end 
+
+    z_branch_dc = _PM.var(pm, nw)[:z_branch_dc] = JuMP.@variable(pm.model,
+    [l in _PM.ids(pm, nw, :branchdc)], base_name="$(nw)_z_branch_dc",
+    binary = false,
+    lower_bound = 0,
+    upper_bound = 1,
+    # binary = true,
+    start = _PM.comp_start_value(_PM.ref(pm, nw, :branchdc, l), "z_branch_dc_start", br[l]["br_status_initial"])
+    )
+
+    report && _PM.sol_component_value(pm, nw, :branchdc, :br_status_dc, _PM.ids(pm, nw, :branchdc), z_branch_dc)
+end
+
+function variable_branch_indicator_binary(pm::_PM.AbstractPowerModel; nw::Int=_PM.nw_id_default, bounded::Bool=true, relax::Bool=false, report::Bool=true)
+    # b = [1,1,0,1,1,1,1];
+    br = Dict()
+    for l in _PM.ids(pm, nw, :branch)
+        br[l] = _PM.ref(pm,nw,:branch,l)
+        # display(br[l]["br_status_initial"])
+    end 
+
+    z_branch = _PM.var(pm, nw)[:z_branch] = JuMP.@variable(pm.model,
+    [l in _PM.ids(pm, nw, :branch)], base_name="$(nw)_z_branch",
+    binary = true,
+    start = _PM.comp_start_value(_PM.ref(pm, nw, :branch, l), "z_branch_start", br[l]["br_status_initial"])
+    # start = _PM.comp_start_value(_PM.ref(pm, nw, :branch, l), "z_branch_start", 0.5)
+    )
+
+    report && _PM.sol_component_value(pm, nw, :branch, :br_status, _PM.ids(pm, nw, :branch), z_branch)
+end
+
+function variable_dc_branch_indicator_binary(pm::_PM.AbstractPowerModel; nw::Int=_PM.nw_id_default, bounded::Bool=true, relax::Bool=false, report::Bool=true)
+ 
+    br = Dict()
+    for l in _PM.ids(pm, nw, :branchdc)
+        br[l] = _PM.ref(pm,nw,:branchdc,l)
+    end 
+
+    z_branch_dc = _PM.var(pm, nw)[:z_branch_dc] = JuMP.@variable(pm.model,
+    [l in _PM.ids(pm, nw, :branchdc)], base_name="$(nw)_z_branch_dc",
+    binary = true,
+    start = _PM.comp_start_value(_PM.ref(pm, nw, :branchdc, l), "z_branch_dc_start", br[l]["br_status_initial"])
+    )
+
+    report && _PM.sol_component_value(pm, nw, :branchdc, :br_status_dc, _PM.ids(pm, nw, :branchdc), z_branch_dc)
+end
+
+function variable_dcbranch_current_on_off(pm::_PM.AbstractIVRModel; nw::Int=_PM.nw_id_default, bounded::Bool = true, report::Bool=true)
+    vpu = 1;
+    igrid_dc_on_off = _PM.var(pm, nw)[:igrid_dc_on_off] = JuMP.@variable(pm.model,
+    [(l,i,j) in _PM.ref(pm, nw, :arcs_dcgrid)], base_name="$(nw)_igrid_dc_on_off",
+    start = (_PM.comp_start_value(_PM.ref(pm, nw, :branchdc, l), "p_start", 0.0) / vpu)
+    )
+    if bounded
+        for arc in _PM.ref(pm, nw, :arcs_dcgrid)
+            l,i,j = arc
+            JuMP.set_lower_bound(igrid_dc_on_off[arc], -_PM.ref(pm, nw, :branchdc, l)["rateA"] / vpu)
+            JuMP.set_upper_bound(igrid_dc_on_off[arc],  _PM.ref(pm, nw, :branchdc, l)["rateA"] / vpu)
+        end
+    end
+    report && _IM.sol_component_value_edge(pm, _PM.pm_it_sym, nw, :branchdc, :if_on_off, :it_on_off, _PM.ref(pm, nw, :arcs_dcgrid_from), _PM.ref(pm, nw, :arcs_dcgrid_to), igrid_dc_on_off)
+end

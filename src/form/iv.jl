@@ -18,6 +18,109 @@ function variable_branch_current(pm::AbstractIVRModel; nw::Int=nw_id_default, bo
     
     variable_branch_series_current_magnitude_squared(pm, nw=nw, bounded=bounded, report=report; kwargs...)
 end
+
+function variable_branch_current_on_off_part1(pm::AbstractIVRModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true, kwargs...)
+    _PM.variable_branch_series_current_real(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+    _PM.variable_branch_series_current_imaginary(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+
+    variable_branch_series_current_real_on_off(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+    variable_branch_series_current_imaginary_on_off(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+
+    # expression_variable_branch_current_real_on_off(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+    # expression_variable_branch_current_imaginary_on_off(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+    
+    variable_branch_series_current_magnitude_squared(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+end
+
+function variable_branch_current_on_off_part2(pm::AbstractIVRModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true, kwargs...)
+    expression_variable_branch_current_real_on_off(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+    expression_variable_branch_current_imaginary_on_off(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+end
+
+function variable_branch_current_on_off(pm::AbstractIVRModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true, kwargs...)
+    _PM.variable_branch_series_current_real(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+    _PM.variable_branch_series_current_imaginary(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+
+    expression_variable_branch_current_real_on_off_deneme(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+    expression_variable_branch_current_imaginary_on_off_deneme(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+
+    
+    # expression_variable_branch_current_real(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+    # expression_variable_branch_current_imaginary(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+    
+    variable_branch_series_current_magnitude_squared(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+end
+
+# function variable_branch_current_on_off_part2(pm::AbstractIVRModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true, kwargs...)
+
+#     expression_variable_branch_current_real_on_off(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+#     expression_variable_branch_current_imaginary_on_off(pm, nw=nw, bounded=bounded, report=report; kwargs...)
+    
+# end
+
+function expression_variable_branch_current_real_on_off_deneme(pm::AbstractPowerModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true)
+    cr = _PM.var(pm, nw)[:cr] = Dict()
+
+    bus = _PM.ref(pm, nw, :bus)
+    branch = _PM.ref(pm, nw, :branch)
+
+    for (l,i,j) in _PM.ref(pm, nw, :arcs_from)
+        b = branch[l]
+        tm = b["tap"]
+        tr, ti = _PM.calc_branch_t(b)
+        g_sh_fr, b_sh_fr = b["g_fr"], b["b_fr"]
+        g_sh_to, b_sh_to = b["g_to"], b["b_to"]
+
+        vr_fr = _PM.var(pm, nw, :vr, i)
+        vi_fr = _PM.var(pm, nw, :vi, i)
+    
+        vr_to = _PM.var(pm, nw, :vr, j)
+        vi_to = _PM.var(pm, nw, :vi, j)
+    
+        csr_fr = _PM.var(pm, nw, :csr, l)
+        csi_fr = _PM.var(pm, nw, :csi, l)
+
+        z_branch = _PM.var(pm, _FP.first_id(pm,nw,:PCE_coeff), :z_branch, l)
+
+        cr[(l,i,j)] = z_branch * ((tr * csr_fr - ti * csi_fr + g_sh_fr * vr_fr - b_sh_fr * vi_fr)) / tm^2
+        cr[(l,j,i)] = z_branch * (-csr_fr + g_sh_to * vr_to - b_sh_to * vi_to)
+
+    end
+
+    report && _IM.sol_component_value_edge(pm, _PM.pm_it_sym, nw, :branch, :cr_fr, :cr_to, _PM.ref(pm, nw, :arcs_from), _PM.ref(pm, nw, :arcs_to), cr)
+end
+
+function expression_variable_branch_current_imaginary_on_off_deneme(pm::AbstractPowerModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true)
+    ci = _PM.var(pm, nw)[:ci] = Dict()
+
+    bus = _PM.ref(pm, nw, :bus)
+    branch = _PM.ref(pm, nw, :branch)
+
+    for (l,i,j) in _PM.ref(pm, nw, :arcs_from)
+        b = branch[l]
+        tm = b["tap"]
+        tr, ti = _PM.calc_branch_t(b)
+        g_sh_fr, b_sh_fr = b["g_fr"], b["b_fr"]
+        g_sh_to, b_sh_to = b["g_to"], b["b_to"]
+
+        vr_fr = _PM.var(pm, nw, :vr, i)
+        vi_fr = _PM.var(pm, nw, :vi, i)
+    
+        vr_to = _PM.var(pm, nw, :vr, j)
+        vi_to = _PM.var(pm, nw, :vi, j)
+    
+        csr_fr = _PM.var(pm, nw, :csr, l)
+        csi_fr = _PM.var(pm, nw, :csi, l)
+        
+        z_branch = _PM.var(pm, _FP.first_id(pm,nw,:PCE_coeff), :z_branch, l)
+
+        ci[(l,i,j)] = z_branch * ((tr * csi_fr + ti * csr_fr + g_sh_fr * vi_fr + b_sh_fr * vr_fr)) / tm^2
+        ci[(l,j,i)] = z_branch * (-csi_fr + g_sh_to * vi_to + b_sh_to * vr_to)
+    end
+
+    report && _IM.sol_component_value_edge(pm, _PM.pm_it_sym, nw, :branch, :ci_fr, :ci_to, _PM.ref(pm, nw, :arcs_from), _PM.ref(pm, nw, :arcs_to), ci)
+end
+
 "variable: `cr[l,i,j]` for `(l,i,j)` in `arcs`"
 function expression_variable_branch_current_real(pm::AbstractPowerModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true)
     cr = _PM.var(pm, nw)[:cr] = Dict()
@@ -65,6 +168,42 @@ function expression_variable_branch_current_real(pm::AbstractPowerModel; nw::Int
 
     report && _IM.sol_component_value_edge(pm, _PM.pm_it_sym, nw, :branch, :cr_fr, :cr_to, _PM.ref(pm, nw, :arcs_from), _PM.ref(pm, nw, :arcs_to), cr)
 end
+
+function expression_variable_branch_current_real_on_off(pm::AbstractPowerModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true)
+    cr = _PM.var(pm, nw)[:cr] = Dict()
+
+    bus = _PM.ref(pm, nw, :bus)
+    branch = _PM.ref(pm, nw, :branch)
+
+    for (l,i,j) in _PM.ref(pm, nw, :arcs_from)
+        b = branch[l]
+        tm = b["tap"]
+        tr, ti = _PM.calc_branch_t(b)
+        g_sh_fr, b_sh_fr = b["g_fr"], b["b_fr"]
+        g_sh_to, b_sh_to = b["g_to"], b["b_to"]
+
+        vr_fr = _PM.var(pm, nw, :vr, i)
+        vi_fr = _PM.var(pm, nw, :vi, i)
+    
+        vr_to = _PM.var(pm, nw, :vr, j)
+        vi_to = _PM.var(pm, nw, :vi, j)
+    
+        csr_fr = _PM.var(pm, nw, :csr, l)
+        csi_fr = _PM.var(pm, nw, :csi, l)
+        
+
+        z_branch = _PM.var(pm, _FP.first_id(pm,nw,:PCE_coeff), :z_branch, l)
+
+
+        cr[(l,i,j)] = z_branch * ((tr * csr_fr - ti * csi_fr + g_sh_fr * vr_fr - b_sh_fr * vi_fr) / tm^2)
+        cr[(l,j,i)] = z_branch * (-csr_fr + g_sh_to * vr_to - b_sh_to * vi_to)
+
+    end
+
+
+    report && _IM.sol_component_value_edge(pm, _PM.pm_it_sym, nw, :branch, :cr_fr, :cr_to, _PM.ref(pm, nw, :arcs_from), _PM.ref(pm, nw, :arcs_to), cr)
+end
+
 "variable: `ci[l,i,j]` for `(l,i,j)` in `arcs`"
 function expression_variable_branch_current_imaginary(pm::AbstractPowerModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true)
     ci = _PM.var(pm, nw)[:ci] = Dict()
@@ -108,6 +247,38 @@ function expression_variable_branch_current_imaginary(pm::AbstractPowerModel; nw
         #     JuMP.@constraint(pm.model, ci[(l,j,i)] >= -ub)
         #     JuMP.@constraint(pm.model, ci[(l,j,i)] <= ub)
         # end
+    end
+
+    report && _IM.sol_component_value_edge(pm, _PM.pm_it_sym, nw, :branch, :ci_fr, :ci_to, _PM.ref(pm, nw, :arcs_from), _PM.ref(pm, nw, :arcs_to), ci)
+end
+
+function expression_variable_branch_current_imaginary_on_off(pm::AbstractPowerModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true)
+    ci = _PM.var(pm, nw)[:ci] = Dict()
+
+    bus = _PM.ref(pm, nw, :bus)
+    branch = _PM.ref(pm, nw, :branch)
+
+    for (l,i,j) in _PM.ref(pm, nw, :arcs_from)
+        b = branch[l]
+        tm = b["tap"]
+        tr, ti = _PM.calc_branch_t(b)
+        g_sh_fr, b_sh_fr = b["g_fr"], b["b_fr"]
+        g_sh_to, b_sh_to = b["g_to"], b["b_to"]
+
+        vr_fr = _PM.var(pm, nw, :vr, i)
+        vi_fr = _PM.var(pm, nw, :vi, i)
+    
+        vr_to = _PM.var(pm, nw, :vr, j)
+        vi_to = _PM.var(pm, nw, :vi, j)
+    
+        csr_fr = _PM.var(pm, nw, :csr, l)
+        csi_fr = _PM.var(pm, nw, :csi, l)
+        
+        z_branch = _PM.var(pm, _FP.first_id(pm,nw,:PCE_coeff), :z_branch, l)
+
+        ci[(l,i,j)] = z_branch * ((tr * csi_fr + ti * csr_fr + g_sh_fr * vi_fr + b_sh_fr * vr_fr) / tm^2)
+        ci[(l,j,i)] = z_branch * (-csi_fr + g_sh_to * vi_to + b_sh_to * vr_to)
+
     end
 
     report && _IM.sol_component_value_edge(pm, _PM.pm_it_sym, nw, :branch, :ci_fr, :ci_to, _PM.ref(pm, nw, :arcs_from), _PM.ref(pm, nw, :arcs_to), ci)
@@ -183,6 +354,7 @@ function constraint_gp_branch_series_current_magnitude_squared(pm::AbstractIVRMo
     csr = Dict(nw => _PM.var(pm, nw, :csr, i) for nw in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)))
     csi = Dict(nw => _PM.var(pm, nw, :csi, i) for nw in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)))
 
+
     coeff_idx = _FP.coord(pm, n, :PCE_coeff)
 
     JuMP.@constraint(pm.model,  T2.get([coeff_idx-1,coeff_idx-1]) * cmss
@@ -192,6 +364,62 @@ function constraint_gp_branch_series_current_magnitude_squared(pm::AbstractIVRMo
                                     for n1 in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)), n2 in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)))
                     )
 end
+
+function constraint_gp_branch_series_current_magnitude_squared_on_off(pm::AbstractIVRModel, n::Int, i, T2, T3)
+    cmss  = _PM.var(pm, n, :cmss, i)
+    csr = Dict(nw => _PM.var(pm, nw, :csr, i) for nw in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)))
+    csi = Dict(nw => _PM.var(pm, nw, :csi, i) for nw in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)))
+
+    
+    z_branch = _PM.var(pm, _FP.first_id(pm, n, :PCE_coeff), :z_branch, i)
+
+    coeff_idx = _FP.coord(pm, n, :PCE_coeff)
+
+    JuMP.@constraint(pm.model,  T2.get([coeff_idx-1,coeff_idx-1]) * cmss
+                                ==
+                                z_branch * sum(T3.get([_FP.coord(pm, n1, :PCE_coeff)-1, _FP.coord(pm, n2, :PCE_coeff)-1, coeff_idx-1]) * 
+                                    (csr[n1] * csr[n2] + csi[n1] * csi[n2]) 
+                                    for n1 in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)), n2 in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)))
+                    )
+end
+
+# function constraint_gp_branch_series_current_magnitude_squared_on_off(pm::AbstractIVRModel, n::Int, i, T2, T3)
+#     cmss  = _PM.var(pm, n, :cmss, i)
+#     csr_on_off = Dict(nw => _PM.var(pm, nw, :csr_on_off, i) for nw in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)))
+#     csi_on_off = Dict(nw => _PM.var(pm, nw, :csi_on_off, i) for nw in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)))
+    
+
+#     coeff_idx = _FP.coord(pm, n, :PCE_coeff)
+
+#     JuMP.@constraint(pm.model,  T2.get([coeff_idx-1,coeff_idx-1]) * cmss
+#                                 ==
+#                                 sum(T3.get([_FP.coord(pm, n1, :PCE_coeff)-1, _FP.coord(pm, n2, :PCE_coeff)-1, coeff_idx-1]) * 
+#                                     (csr_on_off[n1] * csr_on_off[n2] + csi_on_off[n1] * csi_on_off[n2]) 
+#                                     for n1 in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)), n2 in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)))
+#                     )
+# end
+
+function constraint_gp_branch_series_current_on_off_definition(pm::AbstractIVRModel, n::Int, i, T2, T3)
+    
+    csr_on_off  = _PM.var(pm, n, :csr_on_off, i)
+    csi_on_off  = _PM.var(pm, n, :csi_on_off, i)
+
+    csr  = _PM.var(pm, n, :csr, i)
+    csi = _PM.var(pm, n, :csi, i)
+    z_branch  = _PM.var(pm, _FP.first_id(pm, n, :PCE_coeff), :z_branch, i)
+
+    JuMP.@constraint(pm.model,  T2.get([n-1,n-1]) * csr_on_off
+                                ==
+                                T2.get([n-1,n-1]) * csr * z_branch
+                    )
+
+    JuMP.@constraint(pm.model,  T2.get([n-1,n-1]) * csi_on_off
+                                ==
+                                T2.get([n-1,n-1]) * csi * z_branch
+                    )
+end
+
+
 
 function constraint_gp_branch_series_current_magnitude_squared_contingency(pm::AbstractIVRModel, n::Int, i, T2, T3)
     cmss  = _PM.var(pm, n, :cmss, i)
@@ -396,3 +624,86 @@ function _sol_data_model_ivr!(solution::Dict)
         end
     end
 end
+
+function variable_branch_series_current_real_on_off(pm::AbstractPowerModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true)
+    csr_on_off = _PM.var(pm, nw)[:csr_on_off] = JuMP.@variable(pm.model,
+        [l in _PM.ids(pm, nw, :branch)], base_name="$(nw)_csr_on_off",
+        start = _PM.comp_start_value(_PM.ref(pm, nw, :branch, l), "csr_on_off_start", 0.0)
+    )
+
+    if bounded
+        bus = _PM.ref(pm, nw, :bus)
+        branch = _PM.ref(pm, nw, :branch)
+
+        for (l,i,j) in _PM.ref(pm, nw, :arcs_from)
+            b = branch[l]
+            ub = Inf
+            if haskey(b, "rate_a")
+                rate = b["rate_a"]*b["tap"]
+                y_fr = abs(b["g_fr"] + im*b["b_fr"])
+                y_to = abs(b["g_to"] + im*b["b_to"])
+                shunt_current = max(y_fr*bus[i]["vmax"]^2, y_to*bus[j]["vmax"]^2)
+                series_current = max(rate/bus[i]["vmin"], rate/bus[j]["vmin"])
+                ub = series_current + shunt_current
+            end
+            if haskey(b, "c_rating_a")
+                total_current = b["c_rating_a"]
+                y_fr = abs(b["g_fr"] + im*b["b_fr"])
+                y_to = abs(b["g_to"] + im*b["b_to"])
+                shunt_current = max(y_fr*bus[i]["vmax"]^2, y_to*bus[j]["vmax"]^2)
+                ub = total_current + shunt_current
+            end
+
+            if !isinf(ub)
+                JuMP.set_lower_bound(csr_on_off[l], -ub)
+                JuMP.set_upper_bound(csr_on_off[l],  ub)
+            end
+        end
+    end
+
+
+    report && _PM.sol_component_value(pm, nw, :branch, :csr_fr_on_off, _PM.ids(pm, nw, :branch), csr_on_off)
+end
+
+"variable: `csi[l,i,j] ` for `(l,i,j)` in `arcs_from`"
+function variable_branch_series_current_imaginary_on_off(pm::AbstractPowerModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true)
+    csi_on_off = _PM.var(pm, nw)[:csi_on_off] = JuMP.@variable(pm.model,
+        [l in _PM.ids(pm, nw, :branch)], base_name="$(nw)_csi_on_off",
+        start = _PM.comp_start_value(_PM.ref(pm, nw, :branch, l), "csi_on_off_start", 0.0)
+    )
+
+    if bounded
+        bus = _PM.ref(pm, nw, :bus)
+        branch = _PM.ref(pm, nw, :branch)
+
+        for (l,i,j) in _PM.ref(pm, nw, :arcs_from)
+            b = branch[l]
+            ub = Inf
+            if haskey(b, "rate_a")
+                rate = b["rate_a"]*b["tap"]
+                y_fr = abs(b["g_fr"] + im*b["b_fr"])
+                y_to = abs(b["g_to"] + im*b["b_to"])
+                shuntcurrent = max(y_fr*bus[i]["vmax"]^2, y_to*bus[j]["vmax"]^2)
+                seriescurrent = max(rate/bus[i]["vmin"], rate/bus[j]["vmin"])
+                ub = seriescurrent + shuntcurrent
+            end
+            if haskey(b, "c_rating_a")
+                totalcurrent = b["c_rating_a"]
+                y_fr = abs(b["g_fr"] + im*b["b_fr"])
+                y_to = abs(b["g_to"] + im*b["b_to"])
+                shuntcurrent = max(y_fr*bus[i]["vmax"]^2, y_to*bus[j]["vmax"]^2)
+                ub = totalcurrent + shuntcurrent
+            end
+
+            if !isinf(ub)
+                JuMP.set_lower_bound(csi_on_off[l], -ub)
+                JuMP.set_upper_bound(csi_on_off[l],  ub)
+            end
+
+        end
+    end
+
+
+    report && _PM.sol_component_value(pm, nw, :branch, :csi_fr_on_off, _PM.ids(pm, nw, :branch), csi_on_off)
+end
+

@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../PowerModelsACDC.jl-SOTS"
+		},
+		{
+			"path": "../FlexPlan.jl-master"
+		},
+		{
+			"path": "../StochasticPowerModels.jl-dev-SOPFpaper"
+		}
+	],
+	"settings": {
+		"julia.environmentPath": "c:\\Users\\kyurtsev\\OneDrive - KU Leuven\\Work Laptop\\dev\\StochasticPowerModels.jl-dev-SOTSpaper"
+	}
+}

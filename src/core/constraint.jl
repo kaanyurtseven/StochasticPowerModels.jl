@@ -384,6 +384,31 @@ function constraint_current_balance_dc(pm::_PM.AbstractIVRModel, n::Int, bus_arc
 
 end
 
+function constraint_current_balance_dc_on_off(pm::_PM.AbstractIVRModel, n::Int, bus_arcs_dcgrid, bus_convs_dc, pd)
+    
+    igrid_dc = _PM.var(pm, n, :igrid_dc)
+    iconv_dc = _PM.var(pm, n, :iconv_dc)
+
+    
+    z_branch_dc  = _PM.var(pm, _FP.first_id(pm, n, :PCE_coeff), :z_branch_dc)
+
+
+    JuMP.@constraint(pm.model, sum(z_branch_dc[a[1]]*igrid_dc[a] for a in bus_arcs_dcgrid) + sum(iconv_dc[c] for c in bus_convs_dc) == 0) # deal with pd
+
+end
+
+
+
+# function constraint_current_balance_dc_on_off(pm::_PM.AbstractIVRModel, n::Int, bus_arcs_dcgrid, bus_convs_dc, pd)
+    
+#     igrid_dc_on_off = _PM.var(pm, n, :igrid_dc_on_off)
+#     iconv_dc = _PM.var(pm, n, :iconv_dc)
+
+
+#     JuMP.@constraint(pm.model, sum(igrid_dc_on_off[a] for a in bus_arcs_dcgrid) + sum(iconv_dc[c] for c in bus_convs_dc) == 0) # deal with pd
+
+# end
+
 function constraint_gp_ohms_dc_branch(pm::AbstractACRModel, n::Int, i, T2, T3, f_bus, t_bus, f_idx, t_idx, r, p)
 
     p_fr  = _PM.var(pm, n,  :p_dcgrid, f_idx)
@@ -420,6 +445,112 @@ function constraint_gp_ohms_dc_branch(pm::AbstractACRModel, n::Int, i, T2, T3, f
 end
 
 
+function constraint_gp_ohms_dc_branch_on_off(pm::AbstractACRModel, n::Int, i, T2, T3, f_bus, t_bus, f_idx, t_idx, r, p)
+
+    
+    z_branch_dc  = _PM.var(pm, _FP.first_id(pm, n, :PCE_coeff), :z_branch_dc, i)
+
+
+    p_fr  = _PM.var(pm, n,  :p_dcgrid, f_idx)
+    p_to  = _PM.var(pm, n,  :p_dcgrid, t_idx)
+
+    #Dict(nw => _PM.var(pm, nw, :vk_r, i) for nw in _PM.nw_ids(pm))
+    vmdc_fr = Dict(nw => _PM.var(pm, nw, :vdcm, f_bus) for nw in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)))
+    vmdc_to = Dict(nw => _PM.var(pm, nw, :vdcm, t_bus) for nw in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)))
+
+
+    # for n in _FP.similar_ids(pm, nw; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff))
+
+    i_dc_fr = Dict(nw => _PM.var(pm, nw, :igrid_dc, f_idx) for nw in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)))
+    i_dc_to = Dict(nw => _PM.var(pm, nw, :igrid_dc, t_idx) for nw in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)))
+
+    coeff_idx = _FP.coord(pm, n, :PCE_coeff)
+
+    JuMP.@constraint(pm.model,  T2.get([coeff_idx-1,coeff_idx-1]) * p_fr 
+                                ==  
+                                z_branch_dc * sum(T3.get([_FP.coord(pm, n1, :PCE_coeff)-1, _FP.coord(pm, n2, :PCE_coeff)-1, coeff_idx-1]) * 
+                                (vmdc_fr[n1] * i_dc_fr[n2]) 
+                                for n1 in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)), n2 in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)))
+                    )
+
+
+    JuMP.@constraint(pm.model,  T2.get([coeff_idx-1,coeff_idx-1]) * p_to 
+                                ==  
+                                z_branch_dc * sum(T3.get([_FP.coord(pm, n1, :PCE_coeff)-1, _FP.coord(pm, n2, :PCE_coeff)-1, coeff_idx-1]) *
+                                (vmdc_to[n1] * i_dc_to[n2])
+                                for n1 in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)), n2 in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)))
+                    )
+
+                    
+
+
+end
+
+# function constraint_gp_ohms_dc_branch_on_off(pm::AbstractACRModel, n::Int, i, T2, T3, f_bus, t_bus, f_idx, t_idx, r, p)
+
+#     p_fr  = _PM.var(pm, n,  :p_dcgrid, f_idx)
+#     p_to  = _PM.var(pm, n,  :p_dcgrid, t_idx)
+
+#     #Dict(nw => _PM.var(pm, nw, :vk_r, i) for nw in _PM.nw_ids(pm))
+#     vmdc_fr = Dict(nw => _PM.var(pm, nw, :vdcm, f_bus) for nw in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)))
+#     vmdc_to = Dict(nw => _PM.var(pm, nw, :vdcm, t_bus) for nw in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)))
+
+
+#     # for n in _FP.similar_ids(pm, nw; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff))
+
+#     i_dc_fr = Dict(nw => _PM.var(pm, nw, :igrid_dc, f_idx) for nw in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)))
+#     i_dc_to = Dict(nw => _PM.var(pm, nw, :igrid_dc, t_idx) for nw in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)))
+
+#     coeff_idx = _FP.coord(pm, n, :PCE_coeff)
+
+    
+#     z_branch_dc  = _PM.var(pm, _FP.first_id(pm, n, :PCE_coeff), :z_branch_dc, i)
+
+
+#     JuMP.@constraint(pm.model,  T2.get([coeff_idx-1,coeff_idx-1]) * p_fr 
+#                                 ==  
+#                                 sum(T3.get([_FP.coord(pm, n1, :PCE_coeff)-1, _FP.coord(pm, n2, :PCE_coeff)-1, coeff_idx-1]) * 
+#                                 (vmdc_fr[n1] * i_dc_fr[n2] * z_branch_dc) 
+#                                 for n1 in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)), n2 in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)))
+#                     )
+
+
+#     JuMP.@constraint(pm.model,  T2.get([coeff_idx-1,coeff_idx-1]) * p_to 
+#                                 ==  
+#                                 sum(T3.get([_FP.coord(pm, n1, :PCE_coeff)-1, _FP.coord(pm, n2, :PCE_coeff)-1, coeff_idx-1]) *
+#                                 (vmdc_to[n1] * i_dc_to[n2] * z_branch_dc)
+#                                 for n1 in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)), n2 in _FP.similar_ids(pm, n; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff)))
+#                     )
+
+
+# end
+
+function constraint_gp_dc_branch_on_off_definition(pm::AbstractACRModel, n::Int, i, T2, T3, f_bus, t_bus, f_idx, t_idx, r, p)
+
+    i_dc_fr  = _PM.var(pm, n,  :igrid_dc, f_idx)
+    i_dc_to  = _PM.var(pm, n,  :igrid_dc, t_idx)
+
+    i_dc_fr_on_off  = _PM.var(pm, n,  :igrid_dc_on_off, f_idx)
+    i_dc_to_on_off  = _PM.var(pm, n,  :igrid_dc_on_off, t_idx)
+
+    coeff_idx = _FP.coord(pm, n, :PCE_coeff)
+
+    
+    z_branch_dc  = _PM.var(pm, _FP.first_id(pm, n, :PCE_coeff), :z_branch_dc, i)
+
+
+    JuMP.@constraint(pm.model,  T2.get([coeff_idx-1,coeff_idx-1]) * i_dc_fr_on_off 
+                                ==  
+                                T2.get([coeff_idx-1,coeff_idx-1]) * i_dc_fr * z_branch_dc
+                                )
+
+    JuMP.@constraint(pm.model,  T2.get([coeff_idx-1,coeff_idx-1]) * i_dc_to_on_off 
+                                ==  
+                                T2.get([coeff_idx-1,coeff_idx-1]) * i_dc_to * z_branch_dc
+                                )
+
+end
+
 
 
 function constraint_ohms_dc_branch(pm::AbstractACRModel, n::Int, i, f_bus, t_bus, f_idx, t_idx, r, p)
@@ -435,6 +566,60 @@ function constraint_ohms_dc_branch(pm::AbstractACRModel, n::Int, i, f_bus, t_bus
     else
         JuMP.@constraint(pm.model, vmdc_to ==  vmdc_fr - 1/p * r * i_dc_fr)
         JuMP.@constraint(pm.model, vmdc_fr ==  vmdc_to - 1/p * r * i_dc_to)
+    end
+end
+
+function constraint_ohms_dc_branch_on_off(pm::AbstractACRModel, n::Int, i, f_bus, t_bus, f_idx, t_idx, r, p)
+
+    vmdc_fr = _PM.var(pm, n,  :vdcm, f_bus)
+    vmdc_to = _PM.var(pm, n,  :vdcm, t_bus)
+    
+    i_dc_fr = _PM.var(pm, n,  :igrid_dc, f_idx)
+    i_dc_to = _PM.var(pm, n,  :igrid_dc, t_idx)
+
+    z_branch_dc  = _PM.var(pm, _FP.first_id(pm, n, :PCE_coeff), :z_branch_dc, i)
+
+    if r == 0
+        JuMP.@constraint(pm.model, z_branch_dc * (i_dc_fr + i_dc_fr) == 0)
+    else
+        # JuMP.@constraint(pm.model, vmdc_to ==  vmdc_fr - 1/p * r * i_dc_fr)
+        # JuMP.@constraint(pm.model, vmdc_fr ==  vmdc_to - 1/p * r * i_dc_to)
+
+        # JuMP.@constraint(pm.model, z_branch_dc * (vmdc_to - (vmdc_fr - 1/p * r * i_dc_fr)) == 0)
+        # JuMP.@constraint(pm.model, z_branch_dc * (vmdc_fr - (vmdc_to - 1/p * r * i_dc_to)) == 0)
+
+        JuMP.@constraint(pm.model, z_branch_dc * vmdc_to ==  z_branch_dc * vmdc_fr - 1/p * r * i_dc_fr)
+        JuMP.@constraint(pm.model, z_branch_dc * vmdc_fr ==  z_branch_dc * vmdc_to - 1/p * r * i_dc_to)
+
+        # JuMP.@constraint(pm.model, z_branch_dc * (vmdc_to - (vmdc_fr - 1/p * r * i_dc_fr)) >= -1e-6)
+        # JuMP.@constraint(pm.model, z_branch_dc * (vmdc_fr - (vmdc_to - 1/p * r * i_dc_to)) <= 1e-6)
+
+        # JuMP.@constraint(pm.model, z_branch_dc * (vmdc_to - (vmdc_fr - 1/p * r * i_dc_fr)) >= -1e-6)
+        # JuMP.@constraint(pm.model, z_branch_dc * (vmdc_fr - (vmdc_to - 1/p * r * i_dc_to)) <= 1e-6)
+
+        # JuMP.@constraint(pm.model, z_branch_dc*vmdc_to - (z_branch_dc*vmdc_fr - 1/p * r * i_dc_fr) >= -1e-6)
+        # JuMP.@constraint(pm.model, z_branch_dc*vmdc_fr - (z_branch_dc*vmdc_to - 1/p * r * i_dc_to)) <= 1e-6
+
+        # JuMP.@constraint(pm.model, z_branch_dc*vmdc_to - (z_branch_dc*vmdc_fr - 1/p * r * i_dc_fr)) >= -1e-6
+        # JuMP.@constraint(pm.model, z_branch_dc*vmdc_fr - (z_branch_dc*vmdc_to - 1/p * r * i_dc_to)) <= 1e-6
+
+
+
+
+        # JuMP.@constraint(pm.model, vmdc_to >=  -1e-8 + vmdc_fr - 1/p * r * i_dc_fr * z_branch_dc)
+        # JuMP.@constraint(pm.model, vmdc_to <=  +1e-8 + vmdc_fr - 1/p * r * i_dc_fr * z_branch_dc)        
+        # JuMP.@constraint(pm.model, vmdc_fr >=  -1e-8 + vmdc_to - 1/p * r * i_dc_to * z_branch_dc)
+        # JuMP.@constraint(pm.model, vmdc_fr <=  +1e-8 + vmdc_to - 1/p * r * i_dc_to * z_branch_dc)
+
+
+
+
+
+
+        # JuMP.@constraint(pm.model, 0 <= vmdc_to - (vmdc_fr - (1/p * r * i_dc_fr)) + (1-z_branch_dc)*(1e-8))
+        # JuMP.@constraint(pm.model, 0 >= vmdc_to - (vmdc_fr - (1/p * r * i_dc_fr)) + (1-z_branch_dc)*(0))
+        # JuMP.@constraint(pm.model, 0 <= vmdc_fr - (vmdc_to - (1/p * r * i_dc_to)) + (1-z_branch_dc)*(1e-8))
+        # JuMP.@constraint(pm.model, 0 >= vmdc_fr - (vmdc_to - (1/p * r * i_dc_to)) + (1-z_branch_dc)*(0))
     end
 end
 
@@ -1206,46 +1391,186 @@ end
 
 
 
-function constraint_cc_dc_branch_current_on_off(pm::AbstractACRModel, i, Imax, Imin, λmax, λmin, f_idx, t_idx, T2, mop)
-    i_dc_fr_on_off = [_PM.var(pm, n, :igrid_dc_on_off, f_idx) for n in sorted_nw_ids(pm)]
-    i_dc_to_on_off = [_PM.var(pm, n, :igrid_dc_on_off, t_idx) for n in sorted_nw_ids(pm)]
+# function constraint_cc_dc_branch_current_on_off(pm::AbstractACRModel, i, Imax, Imin, λmax, λmin, f_idx, t_idx, T2, mop)
+#     i_dc_fr_on_off = [_PM.var(pm, n, :igrid_dc_on_off, f_idx) for n in sorted_nw_ids(pm)]
+#     i_dc_to_on_off = [_PM.var(pm, n, :igrid_dc_on_off, t_idx) for n in sorted_nw_ids(pm)]
+
+#     # bounds on the expectation
+#     JuMP.@constraint(pm.model, _PCE.mean(i_dc_fr_on_off, mop) <= Imax)
+
+#     JuMP.@constraint(pm.model, Imin <= _PCE.mean(i_dc_fr_on_off, mop))
+
+#     # chance constraint bounds
+#     i_dc_fr_max_cc = JuMP.@constraint(pm.model,  _PCE.var(i_dc_fr_on_off, T2)
+#                                <=
+#                                 ((Imax - _PCE.mean(i_dc_fr_on_off, mop)) / λmax)^2
+#                     )
+
+    
+#     i_dc_fr_min_cc = JuMP.@constraint(pm.model,  _PCE.var(i_dc_fr_on_off, T2)
+#                                 <=
+#                                ((_PCE.mean(i_dc_fr_on_off, mop) - Imin) / λmin)^2
+#     )
+    
+
+#     # bounds on the expectation
+#     JuMP.@constraint(pm.model, _PCE.mean(i_dc_to_on_off, mop) <= Imax)
+#     JuMP.@constraint(pm.model, Imin <= _PCE.mean(i_dc_to_on_off, mop))
+
+#     # chance constraint bounds
+#     i_dc_to_max_cc = JuMP.@constraint(pm.model,  _PCE.var(i_dc_to_on_off, T2)
+#                                <=
+#                                 ((Imax - _PCE.mean(i_dc_to_on_off, mop)) / λmax)^2
+#                     )
+    
+#     i_dc_to_min_cc = JuMP.@constraint(pm.model,  _PCE.var(i_dc_to_on_off, T2)
+#                                 <=
+#                                ((_PCE.mean(i_dc_to_on_off, mop) - Imin) / λmin)^2
+#     )
+#     if _IM.report_duals(pm)
+#         _PM.sol(pm, 1, :branchdc, i)[:dual_dc_brach_current_from_min] = i_dc_fr_min_cc
+#         _PM.sol(pm, 1, :branchdc, i)[:dual_dc_brach_current_from_max] = i_dc_fr_max_cc
+#         _PM.sol(pm, 1, :branchdc, i)[:dual_dc_brach_current_to_min] = i_dc_to_min_cc
+#         _PM.sol(pm, 1, :branchdc, i)[:dual_dc_brach_current_to_max] = i_dc_to_max_cc
+#     end
+# end
+
+
+function constraint_gp_branch_indicator(pm::AbstractIVRModel, i::Int; nw::Int=nw_id_default)
+    err = 1e-2
+
+    z_branch = _PM.var(pm, _FP.first_id(pm, nw, :PCE_coeff), :z_branch, i)
+
+    JuMP.@constraint(pm.model, z_branch * (1 - z_branch) <= err)
+
+
+    # JuMP.fix(z_branch[1], 1; force=true)
+
+end
+
+function constraint_gp_dc_branch_indicator(pm::AbstractIVRModel, i::Int; nw::Int=nw_id_default)
+    err = 1e-2
+
+    z_branch_dc = _PM.var(pm, _FP.first_id(pm, nw, :PCE_coeff), :z_branch_dc, i)
+
+    JuMP.@constraint(pm.model, z_branch_dc * (1 - z_branch_dc) <= err)
+
+    # JuMP.fix(z_branch_dc[1], 1; force=true)
+
+end
+
+function constraint_cc_branch_currents_on_off(pm::AbstractACRModel, b, cmax, λcmax, T2, mop, nw)
+    # cmss = [_PM.var(pm, nw, :cmss, b) for nw in sorted_nw_ids(pm)]
+
+    # branch = _PM.ref(pm, nw, :branch, b)
+    # f_bus = branch["f_bus"]
+    # t_bus = branch["t_bus"]
+    # f_idx = (b, f_bus, t_bus)
+    # t_idx = (b, t_bus, f_bus)
+
+    cmss = [_PM.var(pm, n, :cmss, b) for n in _FP.similar_ids(pm, nw; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff))]
+    # cr_fr = [_PM.var(pm, n, :cr, f_idx) for n in _FP.similar_ids(pm, nw; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff))]
+    # ci_fr = [_PM.var(pm, n, :ci, f_idx) for n in _FP.similar_ids(pm, nw; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff))]
+    # csr = [_PM.var(pm, n, :csr, b) for n in _FP.similar_ids(pm, nw; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff))]
+    # csi = [_PM.var(pm, n, :csi, b) for n in _FP.similar_ids(pm, nw; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff))]
+
+
+    z_branch = _PM.var(pm, _FP.first_id(pm, nw, :PCE_coeff), :z_branch, b)
+    
+
+    # bound on the expectation
+    JuMP.@constraint(pm.model,  _PCE.mean(cmss, mop) <= (z_branch*cmax^2))
+    # chance constraint bounds
+    JuMP.@constraint(pm.model,  _PCE.var(cmss,T2)
+                                <=
+                                (((z_branch * cmax^2) - _PCE.mean(cmss,mop)) / λcmax)^2
+                    )
+
+    # JuMP.@constraint(pm.model, _PCE.mean(cr_fr, mop) <= z_branch*cmax*2)
+    # JuMP.@constraint(pm.model, z_branch*cmax*(-2) <= _PCE.mean(cr_fr, mop))
+
+    # JuMP.@constraint(pm.model, _PCE.mean(ci_fr, mop) <= z_branch*cmax*2)
+    # JuMP.@constraint(pm.model, z_branch*cmax*(-2) <= _PCE.mean(ci_fr, mop))
+    
+    # JuMP.@constraint(pm.model, _PCE.mean(csr, mop) <= z_branch*cmax*2)
+    # JuMP.@constraint(pm.model, z_branch*cmax*(-2) <= _PCE.mean(csr, mop))
+
+    # JuMP.@constraint(pm.model, _PCE.mean(csi, mop) <= z_branch*cmax*2)
+    # JuMP.@constraint(pm.model, z_branch*cmax*(-2) <= _PCE.mean(csi, mop))
+
+
+
+
+
+end
+
+function constraint_cc_dc_branch_current_on_off(pm::AbstractACRModel, i, Imax, Imin, λmax, λmin, f_idx, t_idx, T2, mop, nw)
+    # i_dc_fr = [_PM.var(pm, n, :igrid_dc, f_idx) for n in sorted_nw_ids(pm)]
+    # i_dc_to = [_PM.var(pm, n, :igrid_dc, t_idx) for n in sorted_nw_ids(pm)]
+
+    i_dc_fr = [_PM.var(pm, n, :igrid_dc, f_idx) for n in _FP.similar_ids(pm, nw; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff))]
+    i_dc_to = [_PM.var(pm, n, :igrid_dc, t_idx) for n in _FP.similar_ids(pm, nw; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff))]
+
+    z_branch_dc = _PM.var(pm, _FP.first_id(pm, nw, :PCE_coeff), :z_branch_dc, i)
 
     # bounds on the expectation
-    JuMP.@constraint(pm.model, _PCE.mean(i_dc_fr_on_off, mop) <= Imax)
+    JuMP.@constraint(pm.model, _PCE.mean(i_dc_fr, mop) <= z_branch_dc*Imax)
 
-    JuMP.@constraint(pm.model, Imin <= _PCE.mean(i_dc_fr_on_off, mop))
+    JuMP.@constraint(pm.model, z_branch_dc*Imin <= _PCE.mean(i_dc_fr, mop))
 
     # chance constraint bounds
-    i_dc_fr_max_cc = JuMP.@constraint(pm.model,  _PCE.var(i_dc_fr_on_off, T2)
+    i_dc_fr_max_cc = JuMP.@constraint(pm.model,  _PCE.var(i_dc_fr, T2)
                                <=
-                                ((Imax - _PCE.mean(i_dc_fr_on_off, mop)) / λmax)^2
+                                ((z_branch_dc*Imax - _PCE.mean(i_dc_fr, mop)) / λmax)^2
                     )
 
     
-    i_dc_fr_min_cc = JuMP.@constraint(pm.model,  _PCE.var(i_dc_fr_on_off, T2)
+    i_dc_fr_min_cc = JuMP.@constraint(pm.model,  _PCE.var(i_dc_fr, T2)
                                 <=
-                               ((_PCE.mean(i_dc_fr_on_off, mop) - Imin) / λmin)^2
+                               ((_PCE.mean(i_dc_fr, mop) - z_branch_dc*Imin) / λmin)^2
     )
     
 
     # bounds on the expectation
-    JuMP.@constraint(pm.model, _PCE.mean(i_dc_to_on_off, mop) <= Imax)
-    JuMP.@constraint(pm.model, Imin <= _PCE.mean(i_dc_to_on_off, mop))
+    JuMP.@constraint(pm.model, _PCE.mean(i_dc_to, mop) <= z_branch_dc*Imax)
+    JuMP.@constraint(pm.model, z_branch_dc*Imin <= _PCE.mean(i_dc_to, mop))
 
     # chance constraint bounds
-    i_dc_to_max_cc = JuMP.@constraint(pm.model,  _PCE.var(i_dc_to_on_off, T2)
+    i_dc_to_max_cc = JuMP.@constraint(pm.model,  _PCE.var(i_dc_to, T2)
                                <=
-                                ((Imax - _PCE.mean(i_dc_to_on_off, mop)) / λmax)^2
+                                ((z_branch_dc*Imax - _PCE.mean(i_dc_to, mop)) / λmax)^2
                     )
     
-    i_dc_to_min_cc = JuMP.@constraint(pm.model,  _PCE.var(i_dc_to_on_off, T2)
+    i_dc_to_min_cc = JuMP.@constraint(pm.model,  _PCE.var(i_dc_to, T2)
                                 <=
-                               ((_PCE.mean(i_dc_to_on_off, mop) - Imin) / λmin)^2
+                               ((_PCE.mean(i_dc_to, mop) - z_branch_dc*Imin) / λmin)^2
     )
-    if _IM.report_duals(pm)
-        _PM.sol(pm, 1, :branchdc, i)[:dual_dc_brach_current_from_min] = i_dc_fr_min_cc
-        _PM.sol(pm, 1, :branchdc, i)[:dual_dc_brach_current_from_max] = i_dc_fr_max_cc
-        _PM.sol(pm, 1, :branchdc, i)[:dual_dc_brach_current_to_min] = i_dc_to_min_cc
-        _PM.sol(pm, 1, :branchdc, i)[:dual_dc_brach_current_to_max] = i_dc_to_max_cc
-    end
+end
+
+
+function constraint_voltage_drop_on_off(pm::AbstractIVRModel, n::Int, i, f_bus, t_bus, f_idx, r, x, tr, ti, tm)
+    vr_fr = _PM.var(pm, n, :vr, f_bus)
+    vi_fr = _PM.var(pm, n, :vi, f_bus)
+
+    vr_to = _PM.var(pm, n, :vr, t_bus)
+    vi_to = _PM.var(pm, n, :vi, t_bus)
+
+    csr_fr =  _PM.var(pm, n, :csr, f_idx[1])
+    csi_fr =  _PM.var(pm, n, :csi, f_idx[1])
+
+    z_branch = _PM.var(pm, _FP.first_id(pm, n, :PCE_coeff), :z_branch, f_idx[1])
+
+    # JuMP.@constraint(pm.model, z_branch * (vr_to - ((vr_fr*tr + vi_fr*ti)/tm^2 - r*csr_fr + x*csi_fr)) == 0)
+    # JuMP.@constraint(pm.model, z_branch * (vi_to - ((vi_fr*tr - vr_fr*ti)/tm^2 - r*csi_fr - x*csr_fr)) == 0)
+
+    JuMP.@constraint(pm.model, (z_branch*vr_to - ((z_branch*vr_fr*tr + z_branch*vi_fr*ti)/tm^2 - r*csr_fr + x*csi_fr)) == 0)
+    JuMP.@constraint(pm.model, (z_branch*vi_to - ((z_branch*vi_fr*tr - z_branch*vr_fr*ti)/tm^2 - r*csi_fr - x*csr_fr)) == 0)
+
+    # JuMP.@constraint(pm.model, z_branch * (vr_to - ((vr_fr*tr + vi_fr*ti)/tm^2 - r*csr_fr + x*csi_fr)) >= -1e-6)
+    # JuMP.@constraint(pm.model, z_branch * (vi_to - ((vi_fr*tr - vr_fr*ti)/tm^2 - r*csi_fr - x*csr_fr)) <= 1e-6)
+    # JuMP.@constraint(pm.model, z_branch * (vr_to - ((vr_fr*tr + vi_fr*ti)/tm^2 - r*csr_fr + x*csi_fr)) >= -1e-6)
+    # JuMP.@constraint(pm.model, z_branch * (vi_to - ((vi_fr*tr - vr_fr*ti)/tm^2 - r*csi_fr - x*csr_fr)) <= 1e-6)
+
+
+
 end

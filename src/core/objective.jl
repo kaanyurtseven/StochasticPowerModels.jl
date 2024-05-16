@@ -140,13 +140,13 @@ function objective_min_expected_generation_cost_dim(pm::AbstractPowerModel; kwar
     elseif (curt_status["Load Curtailment"] == false) && (curt_status["RES Curtailment"] == true) 
         return JuMP.@objective(pm.model, Min,
                             sum(gen_cost[g,n] for (n, network) in _PM.nws(pm) for g in _PM.ids(pm, :gen, nw=n) if _FP.is_first_id(pm,n,:PCE_coeff))
-                            + sum(p_RES_curt_cost[p,n] for (n, network) in _PM.nws(pm) for p in _PM.ids(pm, :RES, nw=n) if _FP.is_first_id(pm,n,:PCE_coeff))
+                            # + sum(p_RES_curt_cost[p,n] for (n, network) in _PM.nws(pm) for p in _PM.ids(pm, :RES, nw=n) if _FP.is_first_id(pm,n,:PCE_coeff))
                             )
     elseif (curt_status["Load Curtailment"] == true) && (curt_status["RES Curtailment"] == true) 
         return JuMP.@objective(pm.model, Min,
                             sum(gen_cost[g,n] for (n, network) in _PM.nws(pm) for g in _PM.ids(pm, :gen, nw=n) if _FP.is_first_id(pm,n,:PCE_coeff))
                             + sum(pd_curt_cost[l,n] for (n, network) in _PM.nws(pm) for l in _PM.ids(pm, :load, nw=n) if _FP.is_first_id(pm,n,:PCE_coeff))
-                            + sum(p_RES_curt_cost[p,n] for (n, network) in _PM.nws(pm) for p in _PM.ids(pm, :RES, nw=n) if _FP.is_first_id(pm,n,:PCE_coeff))
+                            # + sum(p_RES_curt_cost[p,n] for (n, network) in _PM.nws(pm) for p in _PM.ids(pm, :RES, nw=n) if _FP.is_first_id(pm,n,:PCE_coeff))
                             )
     end
 

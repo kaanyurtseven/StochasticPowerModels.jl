@@ -59,10 +59,16 @@ module StochasticPowerModels
     include("prob/sopf_acr.jl")
     include("prob/sopf_iv.jl")
     include("prob/sopf_iv_acdc.jl")
+    include("prob/sots_iv_acdc.jl")
+    include("prob/sots_iv_acdc_binary.jl")
     include("prob/sopf_iv_ac.jl")
 
     include("util/data.jl")
     include("util/util.jl")
+
+    include("prob/sots_iv_acdc_deneme2.jl")
+
+    # include("prob/sots_iv_acdc_deneme.jl")
 
     # export
     export BASE_DIR

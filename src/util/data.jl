@@ -194,7 +194,7 @@ function extend_matlab_file_ACDC(path::String)
     # data
     data = _PM.parse_file(path)
 
-    α = 0.95; 
+    α = 0.94; 
 
     λ_val = Distributions.quantile.(Distributions.Normal(), [1-α, α])
 
@@ -234,37 +234,9 @@ function extend_matlab_file_ACDC(path::String)
     #     end
     # end
     
-    for (b,bus) in data["bus"]
-
-        if parse(Int,b) == 3
-            
-            bus["dst_id"]   = 1
-            bus["μ"]        = μ[parse(Int,b)]
-            bus["σ"]        = σ[parse(Int,b)]
-            bus["λvmin"]    = λ_val
-            bus["λvmax"]    = λ_val
-        
-        elseif parse(Int,b) == 4
-            
-            bus["dst_id"]   = 2
-            bus["μ"]        = μ[parse(Int,b)]
-            bus["σ"]        = σ[parse(Int,b)]
-            bus["λvmin"]    = λ_val
-            bus["λvmax"]    = λ_val
-        
-        else
-            bus["dst_id"]   = 0
-            bus["μ"]        = μ[parse(Int,b)]
-            bus["σ"]        = σ[parse(Int,b)]
-            bus["λvmin"]    = λ_val
-            bus["λvmax"]    = λ_val
-        end
-
-    end
-
     # for (b,bus) in data["bus"]
 
-    #     if parse(Int,b) == 6
+    #     if parse(Int,b) == 3
             
     #         bus["dst_id"]   = 1
     #         bus["μ"]        = μ[parse(Int,b)]
@@ -272,7 +244,7 @@ function extend_matlab_file_ACDC(path::String)
     #         bus["λvmin"]    = λ_val
     #         bus["λvmax"]    = λ_val
         
-    #     elseif parse(Int,b) == 20
+    #     elseif parse(Int,b) == 4
             
     #         bus["dst_id"]   = 2
     #         bus["μ"]        = μ[parse(Int,b)]
@@ -289,6 +261,34 @@ function extend_matlab_file_ACDC(path::String)
     #     end
 
     # end
+
+    for (b,bus) in data["bus"]
+
+        if parse(Int,b) == 6
+            
+            bus["dst_id"]   = 1
+            bus["μ"]        = μ[parse(Int,b)]
+            bus["σ"]        = σ[parse(Int,b)]
+            bus["λvmin"]    = λ_val
+            bus["λvmax"]    = λ_val
+        
+        elseif parse(Int,b) == 20
+            
+            bus["dst_id"]   = 1
+            bus["μ"]        = μ[parse(Int,b)]
+            bus["σ"]        = σ[parse(Int,b)]
+            bus["λvmin"]    = λ_val
+            bus["λvmax"]    = λ_val
+        
+        else
+            bus["dst_id"]   = 0
+            bus["μ"]        = μ[parse(Int,b)]
+            bus["σ"]        = σ[parse(Int,b)]
+            bus["λvmin"]    = λ_val
+            bus["λvmax"]    = λ_val
+        end
+
+    end
 
     # for (b,bus) in data["bus"]
 
