@@ -6,7 +6,7 @@ mpc.version = '2';
 %column_names%  dst         pa      pb
 mpc.sdata = [
                 'Normal'    0.0     0.0;
-                'Beta'		11.92	2.38;	
+                'Beta'		2.15	7.65;	
 				%'Normal'    0.0     0.0;
 ];
 
