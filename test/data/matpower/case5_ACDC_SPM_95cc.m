@@ -7,14 +7,16 @@ mpc.version = '2';
 %column_names%  dst         pa      pb
 mpc.sdata = [
                 'Normal'    0.0     0.0;
-                 %'Beta'		11.9241	2.3847;				 
-                 'Beta'		2	4;
+                 'Beta'		11.9241	2.3847;	
+                 %'Beta'		11.9241	2.3847;	
+                 %'Beta'		11.9241	2.3847;			 
+                 %'Beta'		2	4;		 
 ];
 
 %% RES data
 %column_names%  RES_bus dst_id 
 mpc.RES = [ 	1 2;
-                2 2;
+                %2 2;
 				3 2;
 				4 2;
 				5 2;

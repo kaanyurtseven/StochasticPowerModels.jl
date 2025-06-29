@@ -154,11 +154,13 @@ end
 
 function constraint_cc_RES_curt_power(pm::AbstractACRModel, p, pmin, pmax, λmin, λmax, T2, mop, nw)
 
-    p_RES_curt  = [_PM.var(pm, n, :p_RES_curt, p) for n in _FP.similar_ids(pm, nw; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff))]
+   p_RES_curt  = [_PM.var(pm, n, :p_RES_curt, p) for n in _FP.similar_ids(pm, nw; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff))]
+    p_RES  = [_PM.var(pm, n, :p_RES, p) for n in _FP.similar_ids(pm, nw; PCE_coeff=1:_FP.dim_length(pm, :PCE_coeff))]
 
      # bounds on the expectation 
      JuMP.@constraint(pm.model,  pmin <= _PCE.mean(p_RES_curt, mop))
-     JuMP.@constraint(pm.model,  _PCE.mean(p_RES_curt, mop) <= pmax)
+     JuMP.@constraint(pm.model,  _PCE.mean(p_RES_curt, mop) <= _PCE.mean(p_RES, mop)) 
+    
      # chance constraint bounds
      JuMP.@constraint(pm.model,  _PCE.var(p_RES_curt, T2)
                                  <=

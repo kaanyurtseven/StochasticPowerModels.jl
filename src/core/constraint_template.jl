@@ -246,10 +246,10 @@ function constraint_cc_gen_power(pm::AbstractPowerModel, g::Int; nw::Int=nw_id_d
     λqmin = _PM.ref(pm, nw, :gen, g, "λqmin")
     λqmax = _PM.ref(pm, nw, :gen, g, "λqmax")
 
-    λpmin = 3
-    λpmax = 3
-    # λqmin = 4
-    # λqmax = 4
+    # λpmin = 3
+    # λpmax = 3
+    λqmin = 4
+    λqmax = 4
 
     # T2  = pm.data["T2"]
     # mop = pm.data["mop"]
@@ -262,7 +262,7 @@ function constraint_cc_gen_power(pm::AbstractPowerModel, g::Int; nw::Int=nw_id_d
 end
 
 function constraint_cc_RES_curt_power(pm::AbstractPowerModel, p::Int; nw::Int=nw_id_default)
-    pmin = 0
+    pmin = 4e-4
     λmin = 3
     λmax = 3
 
@@ -271,10 +271,11 @@ function constraint_cc_RES_curt_power(pm::AbstractPowerModel, p::Int; nw::Int=nw
     σ = _PM.ref(pm, nw, :RES, p, "σ")
     # pd  = _PM.ref(pm, nw, :RES, p, "pd")
 
-    if haskey(RES, "σ")
-        pmax = p_size * σ * 1 #* pd
+    if RES["σ"] == 1 && RES["μ"] == 0
+        pmax = p_size*1 
     else
-        pmax = p_size * 1  #* pd
+        quantiles = Distributions.quantile.(Distributions.Normal(RES["μ"], RES["σ"]), [1-0.999, 0.999])
+        pmax = quantiles[2] #calculated from website gauss calculator P=1  #RES["μ"] * (1+RES["σ"])
     end
 
 # display(pmax)
@@ -741,9 +742,13 @@ function constraint_cc_dc_branch_current(pm::AbstractPowerModel, i::Int; nw::Int
     Imin = - branch["rateA"]/vpu
    
        
-    λmax = _PM.ref(pm, nw, :branchdc, i, "λcmax")
-    λmin = _PM.ref(pm, nw, :branchdc, i, "λcmax")
+    # λmax = _PM.ref(pm, nw, :branchdc, i, "λcmax")
+    # λmin = _PM.ref(pm, nw, :branchdc, i, "λcmax")
     
+    λmax = 3
+    λmin = 3
+    
+
     # T2  = pm.data["T2"]
     # mop = pm.data["mop"]
 
@@ -895,8 +900,8 @@ function constraint_cc_conv_voltage_magnitude(pm::AbstractPowerModel, i::Int; nw
     # λmin = _PM.ref(pm, nw, :busdc, i, "λvmin")
     # λmax = _PM.ref(pm, nw, :busdc, i, "λvmax")
 
-    λmin = 4
-    λmax = 4
+    λmin = 3
+    λmax = 3
     
     # T2  = pm.data["T2"]
     # mop = pm.data["mop"]

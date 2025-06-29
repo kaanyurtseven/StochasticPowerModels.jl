@@ -185,7 +185,6 @@ function build_sopf_iv_acdc(pm::AbstractPowerModel)
             for i in _PM.ids(pm, :convdc, nw=n)
         
                 constraint_cc_iconv_lin_squared(pm, i, nw=n) 
-                constraint_cc_iconv_lin(pm, i, nw=n) 
         
                 constraint_cc_conv_ac_power(pm, i, nw=n) 
                 constraint_cc_conv_dc_power(pm, i, nw=n)  
